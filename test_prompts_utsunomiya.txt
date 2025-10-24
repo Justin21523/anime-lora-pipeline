@@ -1,0 +1,145 @@
+# Utsunomiya Toramaru LoRA 測試 Prompts
+# 觸發詞: utsunomiya_toramaru
+# 建議 LoRA 權重: 0.7 ~ 1.0
+
+## 基礎測試 (Basic Tests)
+
+### 1. 簡單肖像 - 正面
+utsunomiya_toramaru, 1boy, portrait, looking at viewer, soccer uniform, orange hair, determined expression, masterpiece, best quality, highly detailed
+
+Negative: lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurred
+
+### 2. 全身站立
+utsunomiya_toramaru, 1boy, full body, standing, soccer uniform, orange spiky hair, confident pose, outdoor soccer field, blue sky, masterpiece, best quality
+
+Negative: lowres, bad anatomy, bad proportions, cropped, worst quality, low quality
+
+### 3. 動作姿勢 - 踢球
+utsunomiya_toramaru, 1boy, dynamic pose, kicking soccer ball, action shot, orange hair, soccer uniform, motion blur, energy effect, masterpiece, best quality, highly detailed
+
+Negative: lowres, bad anatomy, bad hands, bad feet, cropped, worst quality, low quality
+
+---
+
+## 情境測試 (Scenario Tests)
+
+### 4. 訓練場景
+utsunomiya_toramaru, 1boy, training, soccer practice, orange hair, sweat, determined face, soccer field background, afternoon sunlight, masterpiece, best quality
+
+Negative: lowres, bad anatomy, worst quality, low quality, blurry
+
+### 5. 勝利姿勢
+utsunomiya_toramaru, 1boy, victory pose, smiling, holding soccer ball, orange spiky hair, soccer uniform, cheering, stadium background, masterpiece, best quality, detailed
+
+Negative: lowres, bad anatomy, worst quality, low quality
+
+### 6. 特寫鏡頭
+utsunomiya_toramaru, 1boy, close-up, face focus, orange hair, intense eyes, determined expression, dramatic lighting, masterpiece, best quality, highly detailed face
+
+Negative: lowres, bad anatomy, bad face, worst quality, low quality
+
+---
+
+## 風格變化測試 (Style Variation Tests)
+
+### 7. 動漫風格
+utsunomiya_toramaru, 1boy, anime style, vibrant colors, orange hair, soccer uniform, dynamic composition, studio lighting, masterpiece, best quality
+
+Negative: realistic, photorealistic, 3d, lowres, worst quality, low quality
+
+### 8. 插畫風格
+utsunomiya_toramaru, 1boy, illustration, colorful, orange spiky hair, soccer uniform, clean lineart, cel shading, masterpiece, best quality
+
+Negative: sketch, rough, lowres, worst quality, low quality
+
+### 9. 漫畫風格
+utsunomiya_toramaru, 1boy, manga style, screentone, black and white, orange hair (grayscale), action lines, dramatic angle, masterpiece
+
+Negative: color, colored, lowres, worst quality, low quality
+
+---
+
+## 進階測試 (Advanced Tests)
+
+### 10. 多角度 - 側面
+utsunomiya_toramaru, 1boy, side view, profile, orange hair, soccer uniform, standing, serious expression, masterpiece, best quality
+
+Negative: lowres, bad anatomy, worst quality, low quality
+
+### 11. 背景互動
+utsunomiya_toramaru, 1boy, sitting on bench, resting, orange hair, towel around neck, water bottle, locker room background, masterpiece, best quality
+
+Negative: lowres, bad anatomy, worst quality, low quality
+
+### 12. 情緒表現 - 興奮
+utsunomiya_toramaru, 1boy, excited expression, shouting, orange spiky hair standing up, fist pump, soccer uniform, energy aura, masterpiece, best quality, highly detailed
+
+Negative: lowres, bad anatomy, worst quality, low quality
+
+---
+
+## 壓力測試 (Stress Tests)
+
+### 13. 複雜背景
+utsunomiya_toramaru, 1boy, crowded stadium, spectators in background, orange hair, soccer uniform, holding soccer ball, detailed background, masterpiece, best quality
+
+Negative: lowres, bad anatomy, worst quality, low quality, simple background
+
+### 14. 夜景/特殊光照
+utsunomiya_toramaru, 1boy, night scene, stadium lights, orange hair glowing, soccer uniform, dramatic shadows, cinematic lighting, masterpiece, best quality
+
+Negative: lowres, bad anatomy, worst quality, low quality, overexposed
+
+### 15. 特殊效果
+utsunomiya_toramaru, 1boy, fire aura, glowing orange energy, power up scene, spiky orange hair, soccer uniform, special attack pose, fantasy elements, masterpiece, best quality, highly detailed
+
+Negative: lowres, bad anatomy, worst quality, low quality
+
+---
+
+## 測試參數建議 (Recommended Settings)
+
+**基礎設定:**
+- Steps: 20-30
+- Sampler: DPM++ 2M Karras 或 Euler a
+- CFG Scale: 7-9
+- Size: 512x512 或 512x768
+- LoRA Weight: 0.7 ~ 1.0
+
+**如果角色特徵不明顯:**
+- 提高 LoRA 權重到 0.9-1.0
+- 增加 "orange hair" 和 "utsunomiya_toramaru" 的權重
+
+**如果過擬合/太僵硬:**
+- 降低 LoRA 權重到 0.6-0.7
+- 嘗試不同的 checkpoint (epoch 6 或 8)
+
+**檢查點比較測試:**
+1. utsunomiya_toramaru_v1.safetensors (Epoch 10 - 最終版)
+2. utsunomiya_toramaru_v1-000008.safetensors (Epoch 8)
+3. utsunomiya_toramaru_v1-000006.safetensors (Epoch 6)
+
+---
+
+## 品質指標 (Quality Indicators)
+
+**良好結果:**
+✓ 橘色刺蝟頭髮型清晰
+✓ 面部特徵一致
+✓ 足球服裝正確
+✓ 姿勢自然
+✓ 無明顯解剖錯誤
+
+**需要調整:**
+✗ 頭髮顏色錯誤
+✗ 面部崩壞
+✗ 服裝錯誤
+✗ 姿勢僵硬或扭曲
+✗ 手部/腳部變形
+
+**改善方法:**
+- 調整 LoRA 權重
+- 更換 checkpoint 版本
+- 增加負面提示詞
+- 調整 CFG Scale
+- 使用 Hires.fix 提升細節
