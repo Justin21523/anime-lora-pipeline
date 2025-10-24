@@ -1,0 +1,63 @@
+# LoRA Training Configuration for Endou Mamoru
+# Character: 円堂守 (Endou Mamoru)
+# Base Model: Anything V4.5
+# Training Data: 65 images × 10 repeats = 650 samples per epoch
+# Optimized for multi-task GPU environment
+
+[general]
+enable_bucket = true
+bucket_reso_steps = 64
+bucket_no_upscale = true
+
+[model_arguments]
+pretrained_model_name_or_path = "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"
+v2 = false
+v_parameterization = false
+
+[dataset_arguments]
+debug_dataset = false
+cache_latents = true
+cache_latents_to_disk = true
+
+[[datasets]]
+batch_size = 2
+resolution = [512, 512]
+
+  [[datasets.subsets]]
+  image_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/training_data/inazuma-eleven/characters/endou_mamoru/training_ready"
+  num_repeats = 1
+  shuffle_caption = false
+  keep_tokens = 1
+
+[training_arguments]
+output_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/models/lora/character_loras/inazuma-eleven"
+output_name = "endou_mamoru_v1"
+save_precision = "fp16"
+save_every_n_epochs = 2
+max_train_epochs = 10
+
+# Optimizer
+optimizer_type = "AdamW8bit"
+learning_rate = 1e-4
+lr_scheduler = "cosine_with_restarts"
+lr_scheduler_num_cycles = 3
+lr_warmup_steps = 100
+
+# LoRA configuration
+network_module = "networks.lora"
+network_dim = 32
+network_alpha = 16
+
+# Memory optimization
+mixed_precision = "fp16"
+gradient_checkpointing = true
+gradient_accumulation_steps = 2
+
+# Logging
+logging_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/inazuma-eleven/logs"
+log_prefix = "endou_mamoru"
+
+# Training settings
+max_data_loader_n_workers = 8
+persistent_data_loader_workers = true
+seed = 42
