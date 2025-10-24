@@ -1,0 +1,124 @@
+# 円堂守角色配置
+character:
+  name: "Endou Mamoru"
+  name_en: "endou_mamoru"
+  trigger_word: "endou_mamoru"
+
+  # 角色特徵（用於粗篩）
+  visual_features:
+    hair_color: "brown"
+    hair_style: "short_spiky"
+    eye_color: "orange"
+    signature_items:
+      - "orange_headband"
+      - "goalkeeper_gloves"
+
+  # 標籤過濾條件
+  filter_tags:
+    required:  # 必須包含
+      - "1boy"
+      - "male_focus"
+    preferred:  # 優先選擇
+      - "brown_hair"
+      - "orange_eyes"
+      - "headband"
+    forbidden:  # 必須排除
+      - "multiple_boys"
+      - "blurry"
+      - "monochrome"
+
+# 資料來源
+data_sources:
+  videos:
+    - path: "data/raw_videos/S01E01.mkv"
+      priority: "high"
+    - path: "data/raw_videos/S01E02.mkv"
+      priority: "high"
+
+  gold_standard:
+    version: "v1.0"
+    path: "data/characters/endou_mamoru/gold_standard/v1.0/"
+    count: 67
+
+# 影片處理參數
+video_processing:
+  frame_extraction:
+    method: "scenedetect"  # 或 "uniform"
+    fps: 2  # 每秒取樣幀數（scenedetect 用關鍵幀）
+    min_scene_length: 1.0  # 最短場景長度（秒）
+
+  quality_filters:
+    min_resolution: [512, 512]
+    blur_threshold: 150  # Laplacian variance
+    brightness_range: [30, 225]  # 避免過暗/過亮
+
+# 角色過濾參數
+character_filtering:
+  stage1_tagger:
+    model: "wd14-vit-v3"
+    confidence_threshold: 0.6
+
+  stage2_clip:
+    model: "ViT-L/14"
+    similarity_threshold: 0.75  # 與黃金標準的相似度
+    top_k_references: 10  # 使用前 K 張參考圖計算平均
+
+  face_detection:
+    enabled: true
+    min_face_size_ratio: 0.15  # 臉部至少佔畫面 15%
+    detector: "anime-face-detector"
+
+# 自動標註配置
+auto_caption:
+  style: "detailed"  # "minimal" / "detailed"
+
+  minimal_template: "{trigger_word}"
+
+  detailed_template: "{trigger_word}, {outfit}, {expression}, {pose}"
+
+  tag_blacklist:  # 不要加入的標籤
+    - "solo"  # 已經透過過濾確保
+    - "1boy"
+    - "anime_coloring"
+
+# LoRA 訓練參數
+training:
+  # 使用 warehouse 中的共用 base model
+  base_model: "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"
+
+  hyperparameters:
+    network_dim: 32  # LoRA rank
+    network_alpha: 16
+    learning_rate: 1e-4
+    lr_scheduler: "cosine_with_restarts"
+
+    train_batch_size: 4
+    num_epochs: 10
+
+    optimizer: "AdamW8bit"
+    mixed_precision: "fp16"
+
+  regularization:
+    enable_regularization: false
+    # reg_data_dir: "data/regularization/anime_boys/"
+
+  output:
+    save_every_n_epochs: 2
+    keep_only_last_n: 3  # 只保留最後 3 個 checkpoint
+
+# 評估配置
+evaluation:
+  test_prompts:
+    - "{trigger_word}, smiling, looking at viewer"
+    - "{trigger_word}, serious expression, portrait"
+    - "{trigger_word}, goalkeeper pose, soccer field"
+    - "{trigger_word}, school uniform, classroom"
+    - "{trigger_word}, running, dynamic angle"
+
+  metrics:
+    - "clip_score"
+    - "lpips"
+    - "fid"  # Fréchet Inception Distance
+
+  generate_grid: true
+  grid_size: [5, 3]  # 5 prompts × 3 seeds
