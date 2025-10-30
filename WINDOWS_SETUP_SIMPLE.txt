@@ -1,0 +1,108 @@
+========================================================================
+Windows Setup for Long-Running Tasks
+========================================================================
+
+STEP 1: Open PowerShell as Administrator
+-----------------------------------------
+1. Press Win + X
+2. Select "Windows PowerShell (Admin)" or "Terminal (Admin)"
+
+
+STEP 2: Copy and Paste These Commands One by One
+-------------------------------------------------
+
+Command 1 - Disable monitor auto-off (when plugged in):
+powercfg /change monitor-timeout-ac 0
+
+Command 2 - Disable auto-sleep (when plugged in):
+powercfg /change standby-timeout-ac 0
+
+Command 3 - Disable auto-hibernate (when plugged in):
+powercfg /change hibernate-timeout-ac 0
+
+Command 4 - Disable auto-logoff on idle:
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v InactivityTimeoutSecs /t REG_DWORD /d 0 /f
+
+Command 5 - Disable screensaver:
+reg add "HKCU\Control Panel\Desktop" /v ScreenSaveActive /t REG_SZ /d 0 /f
+
+
+STEP 3: Verify Settings
+------------------------
+Run this command to check:
+
+powercfg /query SCHEME_CURRENT SUB_SLEEP | findstr "AC"
+
+Expected: Should see "0x00000000" for sleep/hibernate settings
+
+
+========================================================================
+ALL-IN-ONE COMMAND (Alternative)
+========================================================================
+
+Or copy and paste this entire block:
+
+powercfg /change monitor-timeout-ac 0
+powercfg /change standby-timeout-ac 0
+powercfg /change hibernate-timeout-ac 0
+reg add "HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System" /v InactivityTimeoutSecs /t REG_DWORD /d 0 /f
+reg add "HKCU\Control Panel\Desktop" /v ScreenSaveActive /t REG_SZ /d 0 /f
+Write-Host "Setup Complete!" -ForegroundColor Green
+
+
+========================================================================
+Or Run the Script
+========================================================================
+
+cd C:\web-projects\youtube-web-automation-analysis
+.\scripts\setup_windows.ps1
+
+
+========================================================================
+After Windows Setup is Complete
+========================================================================
+
+Return to WSL Terminal and run:
+
+cd /mnt/c/web-projects/youtube-web-automation-analysis
+bash scripts/test_tmux_setup.sh
+
+Then start your first crawler test:
+
+bash scripts/start_crawler_tmux.sh --mode balanced --max-videos 10
+
+
+========================================================================
+IMPORTANT NOTES
+========================================================================
+
+1. Keep laptop plugged in (for laptops)
+2. Keep network connection stable
+3. Do not manually sleep/hibernate/shutdown during crawl
+4. Check progress daily by reconnecting to tmux session
+
+
+========================================================================
+Quick tmux Commands Reference
+========================================================================
+
+Start crawler (automatically creates tmux session):
+  bash scripts/start_crawler_tmux.sh --mode balanced --max-videos 100
+
+List tmux sessions:
+  tmux ls
+
+Attach to crawler session:
+  tmux attach -t youtube_crawler
+
+Detach from session (inside tmux):
+  Press Ctrl+B, then press D
+
+View logs:
+  tail -f logs/production_crawl.log
+
+Check status:
+  bash scripts/manage_crawler.sh status
+
+
+========================================================================

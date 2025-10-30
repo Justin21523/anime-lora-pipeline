@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+20  #!/usr/bin/env python3
 """
 Yokai Watch Ultra-High-Performance Parallel Pipeline
 Maximizes hardware utilization: 32 CPU cores + GPU
@@ -37,7 +37,7 @@ class UltraFastYokaiPipeline:
         num_seg_workers: int = 16,
         batch_size: int = 64,
         num_dataloader_workers: int = 8,
-        base_model: str = "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"
+        base_model: str = "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors",
     ):
         """
         Initialize ultra-fast pipeline
@@ -64,30 +64,56 @@ class UltraFastYokaiPipeline:
         self.base_model = base_model
 
         # Paths
-        self.warehouse_cache = Path("/mnt/c/AI_LLM_projects/ai_warehouse/cache/yokai-watch")
-        self.warehouse_training = Path("/mnt/c/AI_LLM_projects/ai_warehouse/training_data/yokai-watch")
-        self.warehouse_outputs = Path("/mnt/c/AI_LLM_projects/ai_warehouse/outputs/yokai-watch")
-        self.warehouse_models = Path("/mnt/c/AI_LLM_projects/ai_warehouse/models/lora/yokai-watch")
+        self.warehouse_cache = Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/cache/yokai-watch"
+        )
+        self.warehouse_training = Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/training_data/yokai-watch"
+        )
+        self.warehouse_outputs = Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/yokai-watch"
+        )
+        self.warehouse_models = Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/models/lora/yokai-watch"
+        )
 
         self.layered_sample_dir = self.warehouse_cache / "layered_frames_parallel"
-        self.character_clusters_dir = self.warehouse_training / "character_clusters_parallel"
+        self.character_clusters_dir = (
+            self.warehouse_training / "character_clusters_parallel"
+        )
 
         # Scripts
         self.project_root = Path("/mnt/c/AI_LLM_projects/inazuma-eleven-lora")
-        self.segmentation_script = self.project_root / "scripts/tools/layered_segmentation_parallel.py"
-        self.clustering_script = self.project_root / "scripts/tools/character_clustering_parallel.py"
-        self.ai_analysis_script = self.project_root / "scripts/evaluation/comprehensive_anime_analysis.py"
-        self.caption_apply_script = self.project_root / "scripts/tools/apply_captions_from_analysis.py"
+        self.segmentation_script = (
+            self.project_root / "scripts/tools/layered_segmentation_parallel.py"
+        )
+        self.clustering_script = (
+            self.project_root / "scripts/tools/character_clustering_parallel.py"
+        )
+        self.ai_analysis_script = (
+            self.project_root / "scripts/evaluation/comprehensive_anime_analysis.py"
+        )
+        self.caption_apply_script = (
+            self.project_root / "scripts/tools/apply_captions_from_analysis.py"
+        )
 
         self.conda_env = "blip2-env"
 
         # Create directories
-        for d in [self.base_output_dir, self.warehouse_cache, self.warehouse_training,
-                  self.warehouse_outputs, self.warehouse_models]:
+        for d in [
+            self.base_output_dir,
+            self.warehouse_cache,
+            self.warehouse_training,
+            self.warehouse_outputs,
+            self.warehouse_models,
+        ]:
             d.mkdir(parents=True, exist_ok=True)
 
         # Logging
-        self.log_file = self.base_output_dir / f"pipeline_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        self.log_file = (
+            self.base_output_dir
+            / f"pipeline_log_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
+        )
 
         self.log(f"{'='*80}")
         self.log(f"🚀 Yokai Watch Ultra-High-Performance Pipeline")
@@ -162,7 +188,9 @@ class UltraFastYokaiPipeline:
 
     def stage1_parallel_segmentation(self, episodes: List[Path]) -> bool:
         """Stage 1: Parallel segmentation"""
-        self.log(f"\n🎨 Stage 1: Parallel Segmentation ({self.num_seg_workers} workers)")
+        self.log(
+            f"\n🎨 Stage 1: Parallel Segmentation ({self.num_seg_workers} workers)"
+        )
 
         self.layered_sample_dir.mkdir(parents=True, exist_ok=True)
 
@@ -170,13 +198,21 @@ class UltraFastYokaiPipeline:
             self.log(f"  Segmenting: {ep_folder.name}")
 
             cmd = [
-                "conda", "run", "-n", self.conda_env,
-                "python3", str(self.segmentation_script),
+                "conda",
+                "run",
+                "-n",
+                self.conda_env,
+                "python3",
+                str(self.segmentation_script),
                 str(ep_folder),
-                "--output-dir", str(self.layered_sample_dir),
-                "--num-workers", str(self.num_seg_workers),
-                "--seg-model", "u2net",
-                "--inpaint-method", "telea"
+                "--output-dir",
+                str(self.layered_sample_dir),
+                "--num-workers",
+                str(self.num_seg_workers),
+                "--seg-model",
+                "u2net",
+                "--inpaint-method",
+                "telea",
             ]
 
             success = self.run_command(cmd, f"Parallel Segment {ep_folder.name}")
@@ -192,15 +228,24 @@ class UltraFastYokaiPipeline:
         self.character_clusters_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "conda", "run", "-n", self.conda_env,
-            "python3", str(self.clustering_script),
+            "conda",
+            "run",
+            "-n",
+            self.conda_env,
+            "python3",
+            str(self.clustering_script),
             str(self.layered_sample_dir),
-            "--output-dir", str(self.character_clusters_dir),
-            "--min-cluster-size", str(self.min_cluster_size),
-            "--device", self.device,
-            "--batch-size", str(self.batch_size),
-            "--num-workers", str(self.num_dataloader_workers),
-            "--copy"
+            "--output-dir",
+            str(self.character_clusters_dir),
+            "--min-cluster-size",
+            str(self.min_cluster_size),
+            "--device",
+            self.device,
+            "--batch-size",
+            str(self.batch_size),
+            "--num-workers",
+            str(self.num_dataloader_workers),
+            "--copy",
         ]
 
         return self.run_command(cmd, "Parallel Character Clustering")
@@ -210,8 +255,11 @@ class UltraFastYokaiPipeline:
         if not self.character_clusters_dir.exists():
             return []
 
-        clusters = [d for d in self.character_clusters_dir.iterdir()
-                   if d.is_dir() and d.name.startswith("cluster_")]
+        clusters = [
+            d
+            for d in self.character_clusters_dir.iterdir()
+            if d.is_dir() and d.name.startswith("cluster_")
+        ]
         clusters.sort()
 
         self.log(f"\n📊 Found {len(clusters)} clusters:")
@@ -229,17 +277,26 @@ class UltraFastYokaiPipeline:
         self.log(f"{'#'*80}")
 
         start_time = time.time()
-        result = {"character": char_name, "start_time": datetime.now().isoformat(), "stages": {}}
+        result = {
+            "character": char_name,
+            "start_time": datetime.now().isoformat(),
+            "stages": {},
+        }
 
         # AI Analysis
         analysis_output = self.warehouse_outputs / char_name / "ai_analysis"
         analysis_output.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "conda", "run", "-n", self.conda_env,
-            "python3", str(self.ai_analysis_script),
+            "conda",
+            "run",
+            "-n",
+            self.conda_env,
+            "python3",
+            str(self.ai_analysis_script),
             str(cluster_dir),
-            "--output-dir", str(analysis_output)
+            "--output-dir",
+            str(analysis_output),
         ]
 
         success = self.run_command(cmd, f"AI Analysis - {char_name}")
@@ -251,11 +308,16 @@ class UltraFastYokaiPipeline:
         # Apply Captions
         analysis_json = analysis_output / "character_analysis.json"
         cmd = [
-            "conda", "run", "-n", self.conda_env,
-            "python3", str(self.caption_apply_script),
+            "conda",
+            "run",
+            "-n",
+            self.conda_env,
+            "python3",
+            str(self.caption_apply_script),
             str(analysis_json),
             str(cluster_dir),
-            "--output-dir", str(cluster_dir)
+            "--output-dir",
+            str(cluster_dir),
         ]
 
         success = self.run_command(cmd, f"Apply Captions - {char_name}")
@@ -272,24 +334,42 @@ class UltraFastYokaiPipeline:
         model_output_dir.mkdir(parents=True, exist_ok=True)
 
         cmd = [
-            "conda", "run", "-n", self.conda_env,
-            "python3", "-m", "accelerate.commands.launch",
-            "--num_cpu_threads_per_process", "1",
+            "conda",
+            "run",
+            "-n",
+            self.conda_env,
+            "python3",
+            "-m",
+            "accelerate.commands.launch",
+            "--num_cpu_threads_per_process",
+            "1",
             "train_network.py",
-            "--pretrained_model_name_or_path", self.base_model,
-            "--train_data_dir", str(cluster_dir),
-            "--output_dir", str(model_output_dir),
-            "--output_name", char_name,
-            "--save_model_as", "safetensors",
-            "--max_train_steps", str(steps),
-            "--learning_rate", "1e-4",
-            "--optimizer_type", "AdamW8bit",
+            "--pretrained_model_name_or_path",
+            self.base_model,
+            "--train_data_dir",
+            str(cluster_dir),
+            "--output_dir",
+            str(model_output_dir),
+            "--output_name",
+            char_name,
+            "--save_model_as",
+            "safetensors",
+            "--max_train_steps",
+            str(steps),
+            "--learning_rate",
+            "1e-4",
+            "--optimizer_type",
+            "AdamW8bit",
             "--xformers",
-            "--mixed_precision", "fp16",
+            "--mixed_precision",
+            "fp16",
             "--cache_latents",
-            "--network_module", "networks.lora",
-            "--network_dim", "32",
-            "--train_batch_size", "2"
+            "--network_module",
+            "networks.lora",
+            "--network_dim",
+            "32",
+            "--train_batch_size",
+            "2",
         ]
 
         success = self.run_command(cmd, f"Train LoRA - {char_name}")
@@ -333,12 +413,18 @@ class UltraFastYokaiPipeline:
             # Save intermediate results
             results_file = self.base_output_dir / "pipeline_results.json"
             with open(results_file, "w") as f:
-                json.dump({
-                    "pipeline_start": datetime.fromtimestamp(pipeline_start).isoformat(),
-                    "total_characters": len(clusters),
-                    "processed": idx,
-                    "results": all_results
-                }, f, indent=2)
+                json.dump(
+                    {
+                        "pipeline_start": datetime.fromtimestamp(
+                            pipeline_start
+                        ).isoformat(),
+                        "total_characters": len(clusters),
+                        "processed": idx,
+                        "results": all_results,
+                    },
+                    f,
+                    indent=2,
+                )
 
         # Summary
         elapsed = time.time() - pipeline_start
@@ -356,7 +442,9 @@ class UltraFastYokaiPipeline:
 def main():
     parser = argparse.ArgumentParser(description="Ultra-Fast Parallel Yokai Pipeline")
 
-    parser.add_argument("--input-frames", type=Path, default=Path("/home/b0979/yokai_input_fast"))
+    parser.add_argument(
+        "--input-frames", type=Path, default=Path("/home/b0979/yokai_input_fast")
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--segmentation-sample", type=int, default=10)
     parser.add_argument("--min-cluster-size", type=int, default=50)
@@ -365,7 +453,11 @@ def main():
     parser.add_argument("--num-seg-workers", type=int, default=16)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--num-dataloader-workers", type=int, default=8)
-    parser.add_argument("--base-model", type=str, default="/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors")
+    parser.add_argument(
+        "--base-model",
+        type=str,
+        default="/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors",
+    )
 
     args = parser.parse_args()
     random.seed(42)
@@ -379,7 +471,7 @@ def main():
         num_seg_workers=args.num_seg_workers,
         batch_size=args.batch_size,
         num_dataloader_workers=args.num_dataloader_workers,
-        base_model=args.base_model
+        base_model=args.base_model,
     )
 
     pipeline.run(max_characters=args.max_characters)
