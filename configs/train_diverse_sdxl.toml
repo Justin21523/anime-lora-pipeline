@@ -1,0 +1,66 @@
+# SDXL LoRA Training Config - Diverse Dataset
+# High-quality general-purpose character LoRA
+
+[model]
+pretrained_model_name_or_path = "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/AnythingXL_v50.safetensors"
+v2 = false
+v_parameterization = false
+sdxl = true
+
+[dataset]
+resolution = 1024
+batch_size = 2
+enable_bucket = true
+min_bucket_reso = 768
+max_bucket_reso = 1536
+bucket_reso_steps = 128
+bucket_no_upscale = false
+
+[[dataset.subsets]]
+image_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/training_data/inazuma-eleven/dataset_diverse_3000"
+num_repeats = 10
+shuffle_caption = true
+keep_tokens = 2
+caption_extension = ".txt"
+
+[training]
+output_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/lora_training/inazuma_diverse_sdxl"
+output_name = "inazuma_diverse_v1"
+save_model_as = "safetensors"
+save_precision = "fp16"
+mixed_precision = "fp16"
+
+max_train_epochs = 20
+save_every_n_epochs = 5
+
+learning_rate = 1e-4
+unet_lr = 1e-4
+text_encoder_lr = 5e-5
+lr_scheduler = "cosine_with_restarts"
+lr_warmup_steps = 500
+
+optimizer_type = "AdamW8bit"
+optimizer_args = ["weight_decay=0.01"]
+
+# Network settings
+network_module = "networks.lora"
+network_dim = 32
+network_alpha = 16
+
+# Logging
+logging_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/lora_training/logs"
+log_with = "tensorboard"
+log_prefix = "inazuma_diverse_sdxl"
+
+# Performance
+gradient_checkpointing = true
+gradient_accumulation_steps = 2
+max_data_loader_n_workers = 4
+persistent_data_loader_workers = true
+
+# Misc
+seed = 42
+clip_skip = 2
+xformers = true
+cache_latents = true
+cache_latents_to_disk = true

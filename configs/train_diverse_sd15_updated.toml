@@ -1,0 +1,69 @@
+# SD1.5 LoRA Training Config - Diverse Dataset (Complete)
+# All-in-one configuration file for kohya_ss sd-scripts
+
+# Model parameters
+pretrained_model_name_or_path = "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"
+v2 = false
+v_parameterization = false
+
+# Training output
+output_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/lora_training/inam_diverse_sd15"
+output_name = "inazuma_diverse_v1"
+save_model_as = "safetensors"
+save_precision = "fp16"
+
+# Training parameters
+max_train_epochs = 15
+save_every_n_epochs = 3
+
+learning_rate = 1e-4
+unet_lr = 1e-4
+text_encoder_lr = 5e-5
+lr_scheduler = "cosine_with_restarts"
+lr_warmup_steps = 300
+
+optimizer_type = "AdamW8bit"
+optimizer_args = ["weight_decay=0.01"]
+
+# Network settings
+network_module = "networks.lora"
+network_dim = 32
+network_alpha = 16
+
+# Training precision
+mixed_precision = "fp16"
+full_fp16 = false
+
+# Logging
+logging_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/lora_training/logs"
+log_prefix = "inazuma_diverse_sd15"
+
+# Performance
+gradient_checkpointing = true
+gradient_accumulation_steps = 1
+max_data_loader_n_workers = 4
+persistent_data_loader_workers = true
+
+# Misc
+seed = 42
+clip_skip = 2
+xformers = false
+cache_latents = true
+cache_latents_to_disk = true
+
+# Dataset configuration
+[[datasets]]
+resolution = [512, 512]
+batch_size = 4
+enable_bucket = true
+min_bucket_reso = 384
+max_bucket_reso = 768
+bucket_reso_steps = 64
+bucket_no_upscale = false
+
+  [[datasets.subsets]]
+  image_dir = "/mnt/c/AI_LLM_projects/ai_warehouse/training_data/inazuma-eleven/dataset_diverse_3000/10_inazuma_character"
+  num_repeats = 1
+  shuffle_caption = true
+  keep_tokens = 2
+  caption_extension = ".txt"

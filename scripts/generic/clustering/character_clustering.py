@@ -1,0 +1,600 @@
+#!/usr/bin/env python3
+"""
+Character Clustering Tool for Anime Frames
+Automatically identifies and clusters characters from segmented frames using CLIP embeddings
+
+Features:
+- CLIP-based character feature extraction
+- HDBSCAN clustering for automatic character grouping
+- Quality filtering (blur detection, size filtering)
+- Automatic organization into character-specific folders
+- Visual similarity analysis
+"""
+
+import torch
+import clip
+import numpy as np
+from PIL import Image
+from pathlib import Path
+import argparse
+from typing import List, Dict, Tuple, Optional
+from tqdm import tqdm
+import json
+from datetime import datetime
+import shutil
+import cv2
+from sklearn.cluster import HDBSCAN
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+class QualityFilter:
+    """Filter low-quality character images"""
+
+    def __init__(
+        self,
+        min_size: int = 64,
+        max_blur_threshold: float = 100.0,
+        min_alpha_coverage: float = 0.05
+    ):
+        """
+        Initialize quality filter
+
+        Args:
+            min_size: Minimum width/height in pixels
+            max_blur_threshold: Maximum Laplacian variance (lower = blurrier)
+            min_alpha_coverage: Minimum percentage of non-transparent pixels
+        """
+        self.min_size = min_size
+        self.max_blur_threshold = max_blur_threshold
+        self.min_alpha_coverage = min_alpha_coverage
+
+    def is_blurry(self, image: np.ndarray) -> Tuple[bool, float]:
+        """
+        Detect if image is blurry using Laplacian variance
+
+        Args:
+            image: RGB or RGBA numpy array
+
+        Returns:
+            (is_blurry, blur_score)
+        """
+        # Convert to grayscale
+        if len(image.shape) == 3:
+            if image.shape[2] == 4:
+                gray = cv2.cvtColor(image[:, :, :3], cv2.COLOR_RGB2GRAY)
+            else:
+                gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        else:
+            gray = image
+
+        # Calculate Laplacian variance
+        laplacian = cv2.Laplacian(gray, cv2.CV_64F)
+        variance = laplacian.var()
+
+        return variance < self.max_blur_threshold, variance
+
+    def has_enough_content(self, image: np.ndarray) -> Tuple[bool, float]:
+        """
+        Check if image has enough non-transparent pixels
+
+        Args:
+            image: RGBA numpy array
+
+        Returns:
+            (has_content, coverage_ratio)
+        """
+        if len(image.shape) != 3 or image.shape[2] != 4:
+            return True, 1.0
+
+        alpha = image[:, :, 3]
+        coverage = (alpha > 0).sum() / alpha.size
+
+        return coverage >= self.min_alpha_coverage, coverage
+
+    def check_quality(self, image_path: Path) -> Dict:
+        """
+        Comprehensive quality check
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Dictionary with quality metrics and pass/fail status
+        """
+        img = np.array(Image.open(image_path))
+
+        # Size check
+        height, width = img.shape[:2]
+        size_ok = width >= self.min_size and height >= self.min_size
+
+        # Blur check
+        is_blurry, blur_score = self.is_blurry(img)
+        blur_ok = not is_blurry
+
+        # Content check
+        has_content, coverage = self.has_enough_content(img)
+
+        return {
+            "passed": bool(size_ok and blur_ok and has_content),
+            "width": int(width),
+            "height": int(height),
+            "blur_score": float(blur_score),
+            "alpha_coverage": float(coverage),
+            "reasons": {
+                "size": bool(size_ok),
+                "blur": bool(blur_ok),
+                "content": bool(has_content)
+            }
+        }
+
+
+class CharacterClusterer:
+    """Main character clustering pipeline"""
+
+    def __init__(
+        self,
+        model_name: str = "ViT-B/32",
+        device: str = "cuda",
+        min_cluster_size: int = 10,
+        quality_filter: Optional[QualityFilter] = None
+    ):
+        """
+        Initialize character clustering pipeline
+
+        Args:
+            model_name: CLIP model to use
+            device: Device for computation
+            min_cluster_size: Minimum frames per character cluster
+            quality_filter: Optional quality filter instance
+        """
+        self.device = device
+        self.min_cluster_size = min_cluster_size
+
+        print(f"🔧 Loading CLIP model: {model_name}")
+        self.model, self.preprocess = clip.load(model_name, device=device)
+        self.model.eval()
+        print(f"✓ CLIP model loaded on {device}")
+
+        self.quality_filter = quality_filter or QualityFilter()
+
+    def extract_features(
+        self,
+        image_paths: List[Path],
+        batch_size: int = 32
+    ) -> Tuple[np.ndarray, List[Path], List[Dict]]:
+        """
+        Extract CLIP features from character images
+
+        Args:
+            image_paths: List of image paths
+            batch_size: Batch size for processing
+
+        Returns:
+            (features, valid_paths, quality_reports)
+        """
+        features_list = []
+        valid_paths = []
+        quality_reports = []
+
+        print(f"🔍 Extracting features from {len(image_paths)} images...")
+
+        with torch.no_grad():
+            for i in tqdm(range(0, len(image_paths), batch_size), desc="Processing batches"):
+                batch_paths = image_paths[i:i + batch_size]
+                batch_images = []
+                batch_valid_paths = []
+                batch_quality = []
+
+                for img_path in batch_paths:
+                    # Quality check
+                    quality = self.quality_filter.check_quality(img_path)
+                    quality_reports.append({
+                        "path": str(img_path),
+                        "quality": quality
+                    })
+
+                    if not quality["passed"]:
+                        continue
+
+                    # Load and preprocess
+                    try:
+                        image = Image.open(img_path).convert("RGB")
+                        image_tensor = self.preprocess(image).unsqueeze(0)
+                        batch_images.append(image_tensor)
+                        batch_valid_paths.append(img_path)
+                        batch_quality.append(quality)
+                    except Exception as e:
+                        print(f"\n⚠️  Failed to load {img_path.name}: {e}")
+                        continue
+
+                if not batch_images:
+                    continue
+
+                # Extract features
+                batch_tensor = torch.cat(batch_images).to(self.device)
+                features = self.model.encode_image(batch_tensor)
+                features = features.cpu().numpy()
+
+                features_list.append(features)
+                valid_paths.extend(batch_valid_paths)
+
+        if not features_list:
+            raise ValueError("No valid images found after quality filtering!")
+
+        all_features = np.vstack(features_list)
+
+        print(f"✓ Extracted features: {all_features.shape}")
+        print(f"  Valid images: {len(valid_paths)} / {len(image_paths)}")
+        print(f"  Filtered out: {len(image_paths) - len(valid_paths)}")
+
+        return all_features, valid_paths, quality_reports
+
+    def cluster_characters(
+        self,
+        features: np.ndarray,
+        min_cluster_size: Optional[int] = None
+    ) -> np.ndarray:
+        """
+        Cluster character features using HDBSCAN
+
+        Args:
+            features: Feature vectors
+            min_cluster_size: Minimum cluster size (overrides default)
+
+        Returns:
+            Cluster labels (-1 for noise/outliers)
+        """
+        min_size = min_cluster_size or self.min_cluster_size
+
+        print(f"\n🎯 Clustering characters (min_cluster_size={min_size})...")
+
+        # Normalize features
+        features_norm = features / np.linalg.norm(features, axis=1, keepdims=True)
+
+        # HDBSCAN clustering
+        clusterer = HDBSCAN(
+            min_cluster_size=min_size,
+            min_samples=5,
+            metric='euclidean',
+            cluster_selection_method='eom'
+        )
+
+        labels = clusterer.fit_predict(features_norm)
+
+        n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+        n_noise = list(labels).count(-1)
+
+        print(f"✓ Found {n_clusters} character clusters")
+        print(f"  Noise/outliers: {n_noise} images")
+
+        # Print cluster sizes
+        unique_labels, counts = np.unique(labels[labels >= 0], return_counts=True)
+        print("\n📊 Cluster distribution:")
+        for label, count in sorted(zip(unique_labels, counts), key=lambda x: -x[1]):
+            print(f"  Character {label:2d}: {count:4d} images")
+
+        return labels
+
+    def visualize_clusters(
+        self,
+        features: np.ndarray,
+        labels: np.ndarray,
+        output_path: Path
+    ):
+        """
+        Visualize clusters using PCA
+
+        Args:
+            features: Feature vectors
+            labels: Cluster labels
+            output_path: Path to save visualization
+        """
+        print("\n📈 Creating cluster visualization...")
+
+        # PCA to 2D
+        pca = PCA(n_components=2)
+        features_2d = pca.fit_transform(features)
+
+        # Plot
+        plt.figure(figsize=(12, 8))
+
+        unique_labels = set(labels)
+        colors = plt.cm.Spectral(np.linspace(0, 1, len(unique_labels)))
+
+        for label, color in zip(unique_labels, colors):
+            if label == -1:
+                # Noise: black
+                color = 'gray'
+                marker = 'x'
+                label_name = 'Noise'
+            else:
+                marker = 'o'
+                label_name = f'Character {label}'
+
+            mask = labels == label
+            plt.scatter(
+                features_2d[mask, 0],
+                features_2d[mask, 1],
+                c=[color],
+                label=label_name,
+                marker=marker,
+                alpha=0.6,
+                s=50
+            )
+
+        plt.title('Character Clustering Visualization (PCA)')
+        plt.xlabel('PC1')
+        plt.ylabel('PC2')
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.savefig(output_path, dpi=150, bbox_inches='tight')
+        plt.close()
+
+        print(f"✓ Visualization saved to {output_path}")
+
+    def organize_by_cluster(
+        self,
+        image_paths: List[Path],
+        labels: np.ndarray,
+        output_dir: Path,
+        copy_files: bool = True
+    ) -> Dict:
+        """
+        Organize images into cluster-specific folders
+
+        Args:
+            image_paths: List of image paths
+            labels: Cluster labels
+            output_dir: Output directory
+            copy_files: If True, copy files; if False, create symlinks
+
+        Returns:
+            Organization summary
+        """
+        print(f"\n📁 Organizing images into {output_dir}")
+
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        organization = {
+            "total_images": len(image_paths),
+            "clusters": {},
+            "noise": 0
+        }
+
+        for img_path, label in tqdm(zip(image_paths, labels), total=len(image_paths), desc="Organizing"):
+            if label == -1:
+                # Noise/outliers
+                cluster_dir = output_dir / "noise"
+                organization["noise"] += 1
+            else:
+                cluster_dir = output_dir / f"character_{label:03d}"
+                if label not in organization["clusters"]:
+                    organization["clusters"][label] = 0
+                organization["clusters"][label] += 1
+
+            cluster_dir.mkdir(exist_ok=True)
+
+            dst_path = cluster_dir / img_path.name
+
+            if copy_files:
+                shutil.copy2(img_path, dst_path)
+            else:
+                # Use hard links for ai_warehouse, symlinks for others
+                output_str = str(output_dir.absolute())
+                if 'ai_warehouse' in output_str:
+                    # Hard link (Windows-compatible, no extra space)
+                    if not dst_path.exists():
+                        import os
+                        os.link(img_path, dst_path)
+                else:
+                    # Symlink (for temp/test directories)
+                    if dst_path.exists():
+                        dst_path.unlink()
+                    dst_path.symlink_to(img_path.absolute())
+
+        # Save organization summary
+        summary_path = output_dir / "clustering_summary.json"
+
+        # Convert numpy int64 keys to Python int for JSON serialization
+        organization_clean = {
+            "total_images": organization["total_images"],
+            "clusters": {int(k): v for k, v in organization["clusters"].items()},
+            "noise": organization["noise"]
+        }
+
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                "timestamp": datetime.now().isoformat(),
+                "organization": organization_clean,
+                "min_cluster_size": self.min_cluster_size
+            }, f, indent=2)
+
+        print(f"✓ Organization complete:")
+        print(f"  Characters: {len(organization['clusters'])}")
+        print(f"  Noise: {organization['noise']}")
+        print(f"  Summary: {summary_path}")
+
+        return organization
+
+
+def process_layered_frames(
+    input_dir: Path,
+    output_dir: Path,
+    model_name: str = "ViT-B/32",
+    min_cluster_size: int = 10,
+    device: str = "cuda",
+    copy_files: bool = False,
+    visualize: bool = True
+):
+    """
+    Process all character layers from segmented frames
+
+    Args:
+        input_dir: Directory with layered frames (episode_XXX/character/)
+        output_dir: Output directory for clustered characters
+        model_name: CLIP model name
+        min_cluster_size: Minimum frames per character
+        device: Device to use
+        copy_files: Copy files instead of symlinking
+        visualize: Create visualization
+    """
+    print(f"\n{'='*80}")
+    print("CHARACTER CLUSTERING PIPELINE")
+    print(f"{'='*80}\n")
+
+    # Auto-detect ai_warehouse path and notify about hard link usage
+    output_str = str(output_dir.absolute())
+    if 'ai_warehouse' in output_str and not copy_files:
+        print("⚠️  Detected ai_warehouse path - using hard links (Windows-compatible, no extra space)")
+        print("   Hard links provide single data source without duplication")
+
+    # Find all character images
+    print("🔍 Scanning for character images...")
+    character_dirs = list(input_dir.glob("*/character"))
+
+    if not character_dirs:
+        print(f"❌ No character directories found in {input_dir}")
+        return
+
+    all_images = []
+    for char_dir in character_dirs:
+        images = list(char_dir.glob("*.png"))
+        all_images.extend(images)
+        print(f"  {char_dir.parent.name}: {len(images)} images")
+
+    print(f"\n✓ Found {len(all_images)} total character images")
+
+    if not all_images:
+        print("❌ No images found!")
+        return
+
+    # Initialize clusterer
+    quality_filter = QualityFilter(
+        min_size=64,
+        max_blur_threshold=100.0,
+        min_alpha_coverage=0.05
+    )
+
+    clusterer = CharacterClusterer(
+        model_name=model_name,
+        device=device,
+        min_cluster_size=min_cluster_size,
+        quality_filter=quality_filter
+    )
+
+    # Extract features
+    features, valid_paths, quality_reports = clusterer.extract_features(all_images)
+
+    # Save quality report
+    quality_report_path = output_dir / "quality_report.json"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with open(quality_report_path, 'w', encoding='utf-8') as f:
+        json.dump(quality_reports, f, indent=2)
+    print(f"\n✓ Quality report saved: {quality_report_path}")
+
+    # Cluster
+    labels = clusterer.cluster_characters(features)
+
+    # Visualize
+    if visualize:
+        viz_path = output_dir / "cluster_visualization.png"
+        clusterer.visualize_clusters(features, labels, viz_path)
+
+    # Organize
+    organization = clusterer.organize_by_cluster(
+        valid_paths,
+        labels,
+        output_dir,
+        copy_files=copy_files
+    )
+
+    print(f"\n{'='*80}")
+    print("✅ CHARACTER CLUSTERING COMPLETE")
+    print(f"{'='*80}\n")
+    print(f"Output directory: {output_dir}")
+    print(f"  Character clusters: {len(organization['clusters'])}")
+    print(f"  Total organized images: {organization['total_images']}")
+    print(f"  Noise/outliers: {organization['noise']}")
+    print()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Character Clustering Tool for Anime Frames",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Cluster all characters from layered frames
+  python character_clustering.py /path/to/layered_frames --output-dir /path/to/clustered
+
+  # Use larger minimum cluster size
+  python character_clustering.py /path/to/layered_frames -o /path/to/output --min-cluster-size 20
+
+  # Copy files instead of symlinking
+  python character_clustering.py /path/to/layered_frames -o /path/to/output --copy
+"""
+    )
+
+    parser.add_argument(
+        "input_dir",
+        type=Path,
+        help="Directory containing layered frames (episode_XXX/character/)"
+    )
+    parser.add_argument(
+        "-o", "--output-dir",
+        type=Path,
+        required=True,
+        help="Output directory for clustered characters"
+    )
+    parser.add_argument(
+        "--model",
+        choices=["ViT-B/32", "ViT-B/16", "ViT-L/14"],
+        default="ViT-B/32",
+        help="CLIP model to use (default: ViT-B/32)"
+    )
+    parser.add_argument(
+        "--min-cluster-size",
+        type=int,
+        default=10,
+        help="Minimum number of frames per character cluster (default: 10)"
+    )
+    parser.add_argument(
+        "--device",
+        choices=["cuda", "cpu"],
+        default="cuda",
+        help="Device to use (default: cuda)"
+    )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        help="Copy files instead of creating symlinks"
+    )
+    parser.add_argument(
+        "--no-visualize",
+        action="store_true",
+        help="Skip cluster visualization"
+    )
+
+    args = parser.parse_args()
+
+    # Check input directory
+    if not args.input_dir.exists():
+        print(f"❌ Input directory not found: {args.input_dir}")
+        return
+
+    # Process
+    process_layered_frames(
+        args.input_dir,
+        args.output_dir,
+        model_name=args.model,
+        min_cluster_size=args.min_cluster_size,
+        device=args.device,
+        copy_files=args.copy,
+        visualize=not args.no_visualize
+    )
+
+
+if __name__ == "__main__":
+    main()
