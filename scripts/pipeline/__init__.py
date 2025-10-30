@@ -1,19 +1,17 @@
 """
-Pipeline modules for automated LoRA training data processing
+Professional Anime Video Processing Pipeline
+Multi-stage deep learning pipeline for anime frame segmentation, refinement, and analysis
 """
 
-from .auto_captioner import AutoCaptioner, WD14Tagger
-from .video_processor import VideoProcessor
-from .image_cleaner import ImageCleaner
-from .character_filter import CharacterFilter, CLIPMatcher
-from .pipeline_orchestrator import PipelineOrchestrator
+__version__ = "1.0.0"
+__author__ = "Claude Code"
 
-__all__ = [
-    'AutoCaptioner',
-    'WD14Tagger',
-    'VideoProcessor',
-    'ImageCleaner',
-    'CharacterFilter',
-    'CLIPMatcher',
-    'PipelineOrchestrator',
+# Pipeline stages
+STAGES = [
+    "stage1_segmentation",       # Mask2Former base segmentation
+    "stage2a_character_refine",  # U²-Net + MODNet character refinement
+    "stage2b_effect_separation", # CLIPSeg + Grounded-SAM effect extraction
+    "stage2c_background_inpaint",# LaMa + Video Inpainting background completion
+    "stage3_temporal_consistency",# XMem + DeAOT temporal smoothing
+    "stage4_annotation",          # CLIP + BLIP-2 + DINOv2 intelligent annotation
 ]

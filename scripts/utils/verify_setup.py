@@ -4,6 +4,8 @@ Verify installation and setup
 
 import sys
 from pathlib import Path
+import torch
+import torch.version
 
 
 def check_imports():
@@ -11,21 +13,21 @@ def check_imports():
     print("Checking Python packages...")
 
     required_modules = {
-        'torch': 'PyTorch',
-        'torchvision': 'TorchVision',
-        'PIL': 'Pillow',
-        'cv2': 'OpenCV',
-        'numpy': 'NumPy',
-        'pandas': 'Pandas',
-        'yaml': 'PyYAML',
-        'omegaconf': 'OmegaConf',
-        'tqdm': 'tqdm',
-        'rich': 'rich',
-        'loguru': 'loguru',
-        'imagehash': 'imagehash',
-        'transformers': 'transformers',
-        'diffusers': 'diffusers',
-        'onnxruntime': 'onnxruntime',
+        "torch": "PyTorch",
+        "torchvision": "TorchVision",
+        "PIL": "Pillow",
+        "cv2": "OpenCV",
+        "numpy": "NumPy",
+        "pandas": "Pandas",
+        "yaml": "PyYAML",
+        "omegaconf": "OmegaConf",
+        "tqdm": "tqdm",
+        "rich": "rich",
+        "loguru": "loguru",
+        "imagehash": "imagehash",
+        "transformers": "transformers",
+        "diffusers": "diffusers",
+        "onnxruntime": "onnxruntime",
     }
 
     results = {}
@@ -46,10 +48,11 @@ def check_pytorch():
     print("\nChecking PyTorch...")
     try:
         import torch
+
         print(f"  ✓ PyTorch version: {torch.__version__}")
         print(f"  ✓ CUDA available: {torch.cuda.is_available()}")
         if torch.cuda.is_available():
-            print(f"  ✓ CUDA version: {torch.version.cuda}")
+            print(f"  ✓ CUDA version: {torch.cuda}")
             print(f"  ✓ GPU: {torch.cuda.get_device_name(0)}")
         return True
     except Exception as e:
@@ -63,10 +66,18 @@ def check_paths():
 
     paths_to_check = {
         "Gold standard": Path("data/characters/endou_mamoru/gold_standard/v1.0/images"),
-        "Warehouse training": Path("/mnt/c/AI_LLM_projects/ai_warehouse/training_data/inazuma-eleven"),
-        "Warehouse models": Path("/mnt/c/AI_LLM_projects/ai_warehouse/models/lora/character_loras/inazuma-eleven"),
-        "Warehouse outputs": Path("/mnt/c/AI_LLM_projects/ai_warehouse/outputs/inazuma-eleven"),
-        "Base model": Path("/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"),
+        "Warehouse training": Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/training_data/inazuma-eleven"
+        ),
+        "Warehouse models": Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/models/lora/character_loras/inazuma-eleven"
+        ),
+        "Warehouse outputs": Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/outputs/inazuma-eleven"
+        ),
+        "Base model": Path(
+            "/mnt/c/AI_LLM_projects/ai_warehouse/models/stable-diffusion/anything-v4.5-vae-swapped.safetensors"
+        ),
     }
 
     results = {}
@@ -102,9 +113,9 @@ def check_config():
 
 def main():
     """Run all checks"""
-    print("="*60)
+    print("=" * 60)
     print("Inazuma Eleven LoRA Setup Verification")
-    print("="*60)
+    print("=" * 60)
 
     checks = [
         ("Python packages", check_imports),
@@ -117,9 +128,9 @@ def main():
     for name, check_func in checks:
         results[name] = check_func()
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Summary")
-    print("="*60)
+    print("=" * 60)
 
     all_passed = True
     for name, passed in results.items():
@@ -128,7 +139,7 @@ def main():
         if not passed:
             all_passed = False
 
-    print("="*60)
+    print("=" * 60)
 
     if all_passed:
         print("\n✓ All checks passed! Setup is complete.")
